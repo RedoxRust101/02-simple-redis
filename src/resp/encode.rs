@@ -23,19 +23,19 @@ use super::RespEncode;
 
 // - simple string: "+OK\r\n"
 impl RespEncode for SimpleString {
-    fn encode(self) -> Vec<u8> {
-        format!("+{}\r\n", self.0).into_bytes()
-    }
+  fn encode(self) -> Vec<u8> {
+    format!("+{}\r\n", self.0).into_bytes()
+  }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::RespFrame;
+  use super::*;
+  use crate::RespFrame;
 
-    #[test]
-    fn test_simple_string_encode() {
-        let frame: RespFrame = SimpleString::new("OK".to_string()).into();
-        assert_eq!(frame.encode(), b"+OK\r\n");
-    }
+  #[test]
+  fn test_simple_string_encode() {
+    let frame: RespFrame = SimpleString::new("OK".to_string()).into();
+    assert_eq!(frame.encode(), b"+OK\r\n");
+  }
 }

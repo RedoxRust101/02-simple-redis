@@ -81,6 +81,12 @@ impl<const N: usize> From<&[u8; N]> for BulkString {
   }
 }
 
+impl<const N: usize> From<&[u8; N]> for RespFrame {
+  fn from(s: &[u8; N]) -> Self {
+    BulkString(s.to_vec()).into()
+  }
+}
+
 impl SimpleString {
   pub fn new(s: impl Into<String>) -> Self {
     SimpleString(s.into())

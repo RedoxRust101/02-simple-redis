@@ -68,4 +68,20 @@ mod tests {
     let frame: RespFrame = SimpleString::new("OK".to_string()).into();
     assert_eq!(frame.encode(), b"+OK\r\n");
   }
+
+  #[test]
+  fn test_bulk_string_encode() {
+    let frame: RespFrame = BulkString::new(b"hello".to_vec()).into();
+    assert_eq!(frame.encode(), b"$5\r\nhello\r\n");
+  }
+
+  #[test]
+  fn test_array_encode() {
+    let frame: RespFrame = RespArray::new(vec![
+      BulkString::new(b"get".to_vec()).into(),
+      BulkString::new(b"hello".to_vec()).into(),
+    ])
+    .into();
+    assert_eq!(frame.encode(), b"*2\r\n$3\r\nget\r\n$5\r\nhello\r\n");
+  }
 }

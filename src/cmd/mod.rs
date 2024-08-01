@@ -27,9 +27,12 @@ pub trait CommandExecutor {
 }
 
 #[enum_dispatch(CommandExecutor)]
+#[derive(Debug)]
 pub enum Command {
   Get(Get),
   Set(Set),
+
+  Unrecognized(Unrecognized),
 }
 
 #[derive(Debug)]
@@ -43,6 +46,19 @@ pub struct Set {
   value: RespFrame,
 }
 
+#[derive(Debug)]
+pub struct Unrecognized;
+
+impl TryFrom<RespFrame> for Command {
+  type Error = CommandError;
+  fn try_from(v: RespFrame) -> Result<Self, Self::Error> {
+    match v {
+      RespFrame::Array(array) => Command::try_from(array),
+      _ => Err(CommandError::InvalidCommand("command must be an array".to_string())),
+    }
+  }
+}
+
 impl TryFrom<RespArray> for Command {
   type Error = CommandError;
   fn try_from(v: RespArray) -> Result<Self, Self::Error> {
@@ -52,10 +68,14 @@ impl TryFrom<RespArray> for Command {
         b"set" => Ok(Set::try_from(v)?.into()),
         _ => Err(CommandError::InvalidCommand(String::from_utf8_lossy(cmd.as_ref()).to_string())),
       },
-      _ => Err(CommandError::InvalidCommand(
-        "command must have a BulkString as the first argument1".to_string(),
-      )),
+      _ => Ok(Unrecognized.into()),
     }
+  }
+}
+
+impl CommandExecutor for Unrecognized {
+  fn execute(self, _: &Backend) -> RespFrame {
+    RESP_OK.clone()
   }
 }
 

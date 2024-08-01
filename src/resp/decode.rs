@@ -37,6 +37,11 @@ impl RespDecode for RespFrame {
         let frame = BulkString::decode(buf)?;
         Ok(frame.into())
       }
+      Some(b'*') => {
+        let frame = RespArray::decode(buf)?;
+        Ok(frame.into())
+      }
+      None => Err(RespError::NotComplete),
       _ => Err(RespError::InvalidFrameType(format!(
         "{:?} from RespFrame decode()",
         String::from_utf8_lossy(buf)
@@ -48,10 +53,8 @@ impl RespDecode for RespFrame {
     match iter.peek() {
       Some(b'+') => SimpleString::expect_length(buf),
       Some(b'$') => BulkString::expect_length(buf),
-      _ => Err(RespError::InvalidFrameType(format!(
-        "{:?} from RespFrame expect_length()",
-        String::from_utf8_lossy(buf)
-      ))),
+      Some(b'*') => RespArray::expect_length(buf),
+      _ => Err(RespError::NotComplete),
     }
   }
 }
@@ -195,6 +198,61 @@ mod tests {
     buf.extend_from_slice(b"\n");
     let frame = SimpleString::decode(&mut buf)?;
     assert_eq!(frame, SimpleString::new("hello".to_string()));
+
+    Ok(())
+  }
+
+  #[test]
+  fn test_bulk_string_decode() -> Result<()> {
+    let mut buf = BytesMut::new();
+    buf.extend_from_slice(b"$5\r\nhello\r\n");
+
+    let frame = BulkString::decode(&mut buf)?;
+    assert_eq!(frame, BulkString::new(b"hello"));
+
+    buf.extend_from_slice(b"$5\r\nworld");
+
+    let ret = BulkString::decode(&mut buf);
+    assert_eq!(ret.unwrap_err(), RespError::NotComplete);
+
+    buf.extend_from_slice(b"\r\n");
+
+    let frame = BulkString::decode(&mut buf)?;
+    assert_eq!(frame, BulkString::new(b"world"));
+
+    Ok(())
+  }
+
+  #[test]
+  fn test_array_decode() -> Result<()> {
+    let mut buf = BytesMut::new();
+    buf.extend_from_slice(b"*2\r\n$3\r\nget\r\n$5\r\nhello\r\n");
+
+    let frame = RespArray::decode(&mut buf)?;
+    assert_eq!(frame, RespArray::new([b"get".into(), b"hello".into()]));
+
+    buf.extend_from_slice(b"*2\r\n$3\r\nget\r\n");
+    let ret = RespArray::decode(&mut buf);
+    assert_eq!(ret.unwrap_err(), RespError::NotComplete);
+
+    buf.extend_from_slice(b"$5\r\nhello\r\n");
+    let frame = RespArray::decode(&mut buf)?;
+    assert_eq!(frame, RespArray::new([b"get".into(), b"hello".into()]));
+
+    Ok(())
+  }
+
+  #[test]
+  fn test_calc_array_length() -> Result<()> {
+    let buf = b"*2\r\n$3\r\nget\r\n$5\r\nhello\r\n";
+    let (end, len) = parse_length(buf, "*")?;
+    let total_len = calc_total_length(buf, end, len, "*")?;
+    assert_eq!(total_len, buf.len());
+
+    let buf = b"*2\r\n$3\r\nget\r\r";
+    let (end, len) = parse_length(buf, "*")?;
+    let ret = calc_total_length(buf, end, len, "*");
+    assert_eq!(ret.unwrap_err(), RespError::NotComplete);
 
     Ok(())
   }

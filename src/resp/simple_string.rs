@@ -45,6 +45,7 @@ impl Deref for SimpleString {
 mod tests {
   use super::*;
   use crate::RespFrame;
+  use bytes::BufMut;
 
   #[test]
   fn test_simple_string_encode() {
@@ -65,8 +66,7 @@ mod tests {
     let frame = SimpleString::decode(&mut buf);
     assert_eq!(frame.unwrap_err(), RespError::NotComplete);
 
-    // TODO: no methed named put_u8
-    buf.extend_from_slice(b"\n");
+    buf.put_u8(b'\n');
     let frame = SimpleString::decode(&mut buf)?;
     assert_eq!(frame, SimpleString::new("hello".to_string()));
 

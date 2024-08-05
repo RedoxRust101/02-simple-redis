@@ -1,6 +1,9 @@
 mod array;
+mod bool;
 mod bulk_string;
+mod double;
 mod frame;
+mod integer;
 mod null;
 mod simple_string;
 
@@ -40,6 +43,8 @@ pub enum RespError {
   NotComplete,
   #[error("Parse error: {0}")]
   ParseIntError(#[from] std::num::ParseIntError),
+  #[error("Parse error: {0}")]
+  ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
 fn extract_fixed_data(

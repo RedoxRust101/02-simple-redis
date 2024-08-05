@@ -13,6 +13,9 @@ pub enum RespFrame {
   Null(RespNull),
   BulkString(BulkString),
   Array(RespArray),
+  Boolean(bool),
+  Integer(i64),
+  Double(f64),
 }
 
 impl RespDecode for RespFrame {
@@ -36,6 +39,18 @@ impl RespDecode for RespFrame {
         let frame = RespNull::decode(buf)?;
         Ok(frame.into())
       }
+      Some(b'#') => {
+        let frame = bool::decode(buf)?;
+        Ok(frame.into())
+      }
+      Some(b':') => {
+        let frame = i64::decode(buf)?;
+        Ok(frame.into())
+      }
+      Some(b',') => {
+        let frame = f64::decode(buf)?;
+        Ok(frame.into())
+      }
       None => Err(RespError::NotComplete),
       _ => Err(RespError::InvalidFrameType(format!(
         "{:?} from RespFrame decode()",
@@ -50,12 +65,15 @@ impl RespDecode for RespFrame {
       Some(b'$') => BulkString::expect_length(buf),
       Some(b'*') => RespArray::expect_length(buf),
       Some(b'_') => RespNull::expect_length(buf),
+      Some(b'#') => bool::expect_length(buf),
+      Some(b':') => i64::expect_length(buf),
+      Some(b',') => f64::expect_length(buf),
       _ => Err(RespError::NotComplete),
     }
   }
 }
-
-/* impl From<&str> for RespFrame {
+/*
+impl From<&str> for RespFrame {
   fn from(s: &str) -> Self {
     SimpleString::new(s).into()
   }
@@ -65,8 +83,8 @@ impl From<&[u8]> for RespFrame {
   fn from(s: &[u8]) -> Self {
     BulkString(s.to_vec()).into()
   }
-} */
-
+}
+ */
 impl<const N: usize> From<&[u8; N]> for RespFrame {
   fn from(s: &[u8; N]) -> Self {
     BulkString(s.to_vec()).into()

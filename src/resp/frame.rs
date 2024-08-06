@@ -1,6 +1,6 @@
 use super::{
-  array::RespArray, bulk_string::BulkString, null::RespNull, simple_string::SimpleString,
-  RespDecode, RespError,
+  array::RespArray, bulk_string::BulkString, map::RespMap, null::RespNull,
+  simple_error::SimpleError, simple_string::SimpleString, RespDecode, RespError, RespSet,
 };
 use anyhow::Result;
 use bytes::BytesMut;
@@ -16,6 +16,9 @@ pub enum RespFrame {
   Boolean(bool),
   Integer(i64),
   Double(f64),
+  Error(SimpleError),
+  Map(RespMap),
+  Set(RespSet),
 }
 
 impl RespDecode for RespFrame {
@@ -51,6 +54,18 @@ impl RespDecode for RespFrame {
         let frame = f64::decode(buf)?;
         Ok(frame.into())
       }
+      Some(b'-') => {
+        let frame = SimpleError::decode(buf)?;
+        Ok(frame.into())
+      }
+      Some(b'%') => {
+        let frame = RespMap::decode(buf)?;
+        Ok(frame.into())
+      }
+      Some(b'~') => {
+        let frame = RespMap::decode(buf)?;
+        Ok(frame.into())
+      }
       None => Err(RespError::NotComplete),
       _ => Err(RespError::InvalidFrameType(format!(
         "{:?} from RespFrame decode()",
@@ -68,6 +83,9 @@ impl RespDecode for RespFrame {
       Some(b'#') => bool::expect_length(buf),
       Some(b':') => i64::expect_length(buf),
       Some(b',') => f64::expect_length(buf),
+      Some(b'-') => SimpleError::expect_length(buf),
+      Some(b'%') => RespMap::expect_length(buf),
+      Some(b'~') => RespSet::expect_length(buf),
       _ => Err(RespError::NotComplete),
     }
   }
@@ -84,7 +102,7 @@ impl From<&[u8]> for RespFrame {
     BulkString(s.to_vec()).into()
   }
 }
- */
+*/
 impl<const N: usize> From<&[u8; N]> for RespFrame {
   fn from(s: &[u8; N]) -> Self {
     BulkString(s.to_vec()).into()

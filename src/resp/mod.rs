@@ -4,12 +4,15 @@ mod bulk_string;
 mod double;
 mod frame;
 mod integer;
+mod map;
 mod null;
+mod set;
+mod simple_error;
 mod simple_string;
 
 pub use self::{
-  array::RespArray, bulk_string::BulkString, frame::RespFrame, null::RespNull,
-  simple_string::SimpleString,
+  array::RespArray, bulk_string::BulkString, frame::RespFrame, map::RespMap, null::RespNull,
+  set::RespSet, simple_error::SimpleError, simple_string::SimpleString,
 };
 use bytes::{Buf, BytesMut};
 use enum_dispatch::enum_dispatch;

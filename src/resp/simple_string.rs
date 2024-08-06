@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use std::ops::Deref;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
-pub struct SimpleString(String);
+pub struct SimpleString(pub String);
 
 impl SimpleString {
   pub fn new(s: impl Into<String>) -> Self {

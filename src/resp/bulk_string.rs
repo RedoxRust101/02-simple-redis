@@ -48,6 +48,18 @@ impl<const N: usize> From<&[u8; N]> for BulkString {
   }
 }
 
+impl From<String> for BulkString {
+  fn from(s: String) -> Self {
+    BulkString(s.into_bytes())
+  }
+}
+
+impl From<&str> for BulkString {
+  fn from(s: &str) -> Self {
+    BulkString(s.as_bytes().to_vec())
+  }
+}
+
 impl Deref for BulkString {
   type Target = [u8];
 

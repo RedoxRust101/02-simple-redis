@@ -1,3 +1,4 @@
+mod hmap;
 mod map;
 
 use crate::{Backend, RespArray, RespError, RespFrame, SimpleString};
@@ -31,6 +32,9 @@ pub trait CommandExecutor {
 pub enum Command {
   Get(Get),
   Set(Set),
+  HGet(HGet),
+  HSet(HSet),
+  HGetAll(HGetAll),
 
   Unrecognized(Unrecognized),
 }
@@ -44,6 +48,25 @@ pub struct Get {
 pub struct Set {
   key: String,
   value: RespFrame,
+}
+
+#[derive(Debug)]
+pub struct HGet {
+  key: String,
+  field: String,
+}
+
+#[derive(Debug)]
+pub struct HSet {
+  key: String,
+  field: String,
+  value: RespFrame,
+}
+
+#[derive(Debug)]
+pub struct HGetAll {
+  key: String,
+  sort: bool,
 }
 
 #[derive(Debug)]
@@ -66,6 +89,9 @@ impl TryFrom<RespArray> for Command {
       Some(RespFrame::BulkString(ref cmd)) => match cmd.as_ref() {
         b"get" => Ok(Get::try_from(v)?.into()),
         b"set" => Ok(Set::try_from(v)?.into()),
+        b"hget" => Ok(HGet::try_from(v)?.into()),
+        b"hset" => Ok(HSet::try_from(v)?.into()),
+        b"hgetall" => Ok(HGetAll::try_from(v)?.into()),
         _ => Err(CommandError::InvalidCommand(String::from_utf8_lossy(cmd.as_ref()).to_string())),
       },
       _ => Ok(Unrecognized.into()),

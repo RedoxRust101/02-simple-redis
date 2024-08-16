@@ -103,9 +103,10 @@ impl From<&[u8]> for RespFrame {
   }
 }
 */
+
 impl<const N: usize> From<&[u8; N]> for RespFrame {
   fn from(s: &[u8; N]) -> Self {
-    BulkString(s.to_vec()).into()
+    BulkString(Some(s.to_vec())).into()
   }
 }
 

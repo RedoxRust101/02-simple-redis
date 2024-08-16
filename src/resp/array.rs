@@ -1,16 +1,19 @@
 use super::{
-  calc_total_length, parse_length, RespDecode, RespEncode, RespError, RespFrame, BUF_CAP, CRLF_LEN,
+  calc_total_length, extract_fixed_data, parse_length, RespDecode, RespEncode, RespError,
+  RespFrame, BUF_CAP, CRLF_LEN,
 };
 use anyhow::Result;
 use bytes::{Buf, BytesMut};
 use std::ops::Deref;
 
-#[derive(Debug, PartialEq, PartialOrd, Clone)]
-pub struct RespArray(pub(crate) Vec<RespFrame>);
+const NULL_ARRAY: &str = "*-1\r\n";
+
+#[derive(Debug, PartialEq, PartialOrd, Clone, Default)]
+pub struct RespArray(pub(crate) Option<Vec<RespFrame>>);
 
 impl RespArray {
   pub fn new(s: impl Into<Vec<RespFrame>>) -> Self {
-    RespArray(s.into())
+    RespArray(Some(s.into()))
   }
 }
 
@@ -18,12 +21,17 @@ impl RespArray {
 //    - "*2\r\n$3\r\nget\r\n$5\r\nhello\r\n"
 impl RespEncode for RespArray {
   fn encode(self) -> Vec<u8> {
-    let mut buf = Vec::with_capacity(BUF_CAP);
-    buf.extend_from_slice(format!("*{}\r\n", self.0.len()).as_bytes());
-    for frame in self.0 {
-      buf.extend_from_slice(&frame.encode());
+    match self.0 {
+      Some(data) => {
+        let mut buf = Vec::with_capacity(BUF_CAP);
+        buf.extend_from_slice(format!("*{}\r\n", data.len()).as_bytes());
+        for frame in data {
+          buf.extend_from_slice(&frame.encode());
+        }
+        buf
+      }
+      None => NULL_ARRAY.as_bytes().to_vec(),
     }
-    buf
   }
 }
 
@@ -31,6 +39,11 @@ impl RespEncode for RespArray {
 impl RespDecode for RespArray {
   const PREFIX: &'static str = "*";
   fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
+    let is_null = extract_fixed_data(buf, NULL_ARRAY, "NullArray").is_ok();
+    if is_null {
+      return Ok(RespArray::default());
+    }
+
     let (end, len) = parse_length(buf, Self::PREFIX)?;
     let total_len = calc_total_length(buf, end, len, Self::PREFIX)?;
 
@@ -46,7 +59,7 @@ impl RespDecode for RespArray {
       frames.push(frame);
     }
 
-    Ok(RespArray(frames))
+    Ok(RespArray(Some(frames)))
   }
   fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
     let (end, len) = parse_length(buf, Self::PREFIX)?;
@@ -55,7 +68,7 @@ impl RespDecode for RespArray {
 }
 
 impl Deref for RespArray {
-  type Target = Vec<RespFrame>;
+  type Target = Option<Vec<RespFrame>>;
 
   fn deref(&self) -> &Self::Target {
     &self.0
@@ -92,6 +105,23 @@ mod tests {
     buf.extend_from_slice(b"$5\r\nhello\r\n");
     let frame = RespArray::decode(&mut buf)?;
     assert_eq!(frame, RespArray::new([b"get".into(), b"hello".into()]));
+
+    Ok(())
+  }
+
+  #[test]
+  fn test_null_array_encode() {
+    let frame: RespFrame = RespArray::default().into();
+    assert_eq!(frame.encode(), b"*-1\r\n");
+  }
+
+  #[test]
+  fn test_null_array_decode() -> Result<()> {
+    let mut buf = BytesMut::new();
+    buf.extend_from_slice(b"*-1\r\n");
+
+    let frame = RespArray::decode(&mut buf)?;
+    assert_eq!(frame, RespArray::default());
 
     Ok(())
   }

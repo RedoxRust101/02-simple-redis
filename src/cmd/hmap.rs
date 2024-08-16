@@ -1,5 +1,6 @@
 use super::{
-  extract_args, validate_command, CommandError, CommandExecutor, HGet, HGetAll, HSet, RESP_OK,
+  extract_args, extract_bulk_string, validate_command, CommandError, CommandExecutor, HGet,
+  HGetAll, HSet, RESP_OK,
 };
 use crate::{Backend, BulkString, RespArray, RespFrame, RespNull};
 use std::vec;
@@ -52,9 +53,10 @@ impl TryFrom<RespArray> for HGet {
 
     let mut args = extract_args(value, 1)?.into_iter();
     match (args.next(), args.next()) {
-      (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field))) => {
-        Ok(HGet { key: String::from_utf8(key.0)?, field: String::from_utf8(field.0)? })
-      }
+      (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field))) => Ok(HGet {
+        key: extract_bulk_string(key, "Invalid key")?,
+        field: extract_bulk_string(field, "Invalid field")?,
+      }),
       _ => Err(CommandError::InvalidArgument("Invalid key or field".to_string())),
     }
   }
@@ -68,7 +70,11 @@ impl TryFrom<RespArray> for HSet {
     let mut args = extract_args(value, 1)?.into_iter();
     match (args.next(), args.next(), args.next()) {
       (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field)), Some(value)) => {
-        Ok(HSet { key: String::from_utf8(key.0)?, field: String::from_utf8(field.0)?, value })
+        Ok(HSet {
+          key: extract_bulk_string(key, "Invalid key")?,
+          field: extract_bulk_string(field, "Invalid field")?,
+          value,
+        })
       }
       _ => Err(CommandError::InvalidArgument("Invalid key, field or value".to_string())),
     }
@@ -82,9 +88,13 @@ impl TryFrom<RespArray> for HGetAll {
 
     let mut args = extract_args(value, 1)?.into_iter();
     match args.next() {
-      Some(RespFrame::BulkString(key)) => {
-        Ok(HGetAll { key: String::from_utf8(key.0)?, sort: false })
-      }
+      Some(RespFrame::BulkString(key)) => Ok(HGetAll {
+        key: match key.0 {
+          Some(key) => String::from_utf8(key)?,
+          None => return Err(CommandError::InvalidArgument("Invalid key".to_string())),
+        },
+        sort: false,
+      }),
       _ => Err(CommandError::InvalidArgument("Invalid key".to_string())),
     }
   }

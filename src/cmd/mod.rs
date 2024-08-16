@@ -1,6 +1,13 @@
-mod hmap;
-mod map;
+mod get;
+mod hget;
+mod hgetall;
+mod hset;
+mod set;
+mod unrecognized;
 
+pub use self::{
+  get::Get, hget::HGet, hgetall::HGetAll, hset::HSet, set::Set, unrecognized::Unrecognized,
+};
 use crate::{Backend, BulkString, RespArray, RespError, RespFrame, SimpleString};
 use enum_dispatch::enum_dispatch;
 use lazy_static::lazy_static;
@@ -39,39 +46,6 @@ pub enum Command {
   Unrecognized(Unrecognized),
 }
 
-#[derive(Debug)]
-pub struct Get {
-  key: String,
-}
-
-#[derive(Debug)]
-pub struct Set {
-  key: String,
-  value: RespFrame,
-}
-
-#[derive(Debug)]
-pub struct HGet {
-  key: String,
-  field: String,
-}
-
-#[derive(Debug)]
-pub struct HSet {
-  key: String,
-  field: String,
-  value: RespFrame,
-}
-
-#[derive(Debug)]
-pub struct HGetAll {
-  key: String,
-  sort: bool,
-}
-
-#[derive(Debug)]
-pub struct Unrecognized;
-
 impl TryFrom<RespFrame> for Command {
   type Error = CommandError;
   fn try_from(v: RespFrame) -> Result<Self, Self::Error> {
@@ -101,13 +75,6 @@ impl TryFrom<RespArray> for Command {
     }
   }
 }
-
-impl CommandExecutor for Unrecognized {
-  fn execute(self, _: &Backend) -> RespFrame {
-    RESP_OK.clone()
-  }
-}
-
 fn validate_command(
   value: &RespArray,
   names: &[&'static str],

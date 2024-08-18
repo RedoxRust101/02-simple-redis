@@ -1,6 +1,6 @@
-use super::{extract_args, extract_bulk_string, validate_command, CommandError, CommandExecutor};
+use super::{extract_args, validate_command, CommandError, CommandExecutor};
 
-use crate::{Backend, RespArray, RespFrame, RespNull};
+use crate::{cmd::RESP_NULL, Backend, RespArray, RespFrame};
 #[derive(Debug)]
 pub struct Get {
   pub(crate) key: String,
@@ -10,7 +10,7 @@ impl CommandExecutor for Get {
   fn execute(self, backend: &Backend) -> RespFrame {
     match backend.get(&self.key) {
       Some(value) => value,
-      None => RespFrame::Null(RespNull),
+      None => RESP_NULL.clone(),
     }
   }
 }
@@ -22,7 +22,7 @@ impl TryFrom<RespArray> for Get {
 
     let mut args = extract_args(value, 1)?.into_iter();
     match args.next() {
-      Some(RespFrame::BulkString(key)) => Ok(Get { key: extract_bulk_string(key, "Invalid key")? }),
+      Some(RespFrame::BulkString(key)) => Ok(Get { key: key.into() }),
       _ => Err(CommandError::InvalidArgument("Invalid key".to_string())),
     }
   }

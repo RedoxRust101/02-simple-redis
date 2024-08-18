@@ -9,8 +9,7 @@ impl RespEncode for f64 {
     let ret = if self.abs() > 1e+8 || self.abs() < 1e-8 {
       format!(",{:+e}\r\n", self)
     } else {
-      let sign = if self < 0.0 { "" } else { "+" };
-      format!(",{}{}\r\n", sign, self)
+      format!(",{}\r\n", self)
     };
 
     buf.extend_from_slice(&ret.into_bytes());
@@ -42,7 +41,7 @@ mod tests {
   #[test]
   fn test_double_encode() {
     let frame: RespFrame = 123.456.into();
-    assert_eq!(frame.encode(), b",+123.456\r\n");
+    assert_eq!(frame.encode(), b",123.456\r\n");
 
     let frame: RespFrame = (-123.456).into();
     assert_eq!(frame.encode(), b",-123.456\r\n");

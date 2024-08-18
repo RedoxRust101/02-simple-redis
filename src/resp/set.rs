@@ -74,7 +74,7 @@ mod test {
       BulkString::new("world".to_string()).into(),
     ])
     .into();
-    assert_eq!(frame.encode(), b"~2\r\n*2\r\n:+1234\r\n#t\r\n$5\r\nworld\r\n");
+    assert_eq!(frame.encode(), b"~2\r\n*2\r\n:1234\r\n#t\r\n$5\r\nworld\r\n");
   }
 
   #[test]

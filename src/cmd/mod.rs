@@ -1,20 +1,27 @@
+mod echo;
 mod get;
 mod hget;
 mod hgetall;
+mod hmget;
 mod hset;
+mod sadd;
 mod set;
+mod sismember;
+mod smembers;
 mod unrecognized;
 
 pub use self::{
-  get::Get, hget::HGet, hgetall::HGetAll, hset::HSet, set::Set, unrecognized::Unrecognized,
+  echo::Echo, get::Get, hget::HGet, hgetall::HGetAll, hmget::HMGet, hset::HSet, sadd::SAdd,
+  set::Set, sismember::SIsMember, smembers::SMembers, unrecognized::Unrecognized,
 };
-use crate::{Backend, BulkString, RespArray, RespError, RespFrame, SimpleString};
+use crate::{Backend, RespArray, RespError, RespFrame, RespNull, SimpleString};
 use enum_dispatch::enum_dispatch;
 use lazy_static::lazy_static;
 use thiserror::Error;
 
 lazy_static! {
   static ref RESP_OK: RespFrame = SimpleString::new("OK").into();
+  static ref RESP_NULL: RespFrame = RespFrame::Null(RespNull);
 }
 
 #[derive(Error, Debug)]
@@ -42,6 +49,11 @@ pub enum Command {
   HGet(HGet),
   HSet(HSet),
   HGetAll(HGetAll),
+  Echo(Echo),
+  HMGet(HMGet),
+  SADD(SAdd),
+  SMEMBERS(SMembers),
+  SISMEMBER(SIsMember),
 
   Unrecognized(Unrecognized),
 }
@@ -67,6 +79,11 @@ impl TryFrom<RespArray> for Command {
           b"hget" => Ok(HGet::try_from(v)?.into()),
           b"hset" => Ok(HSet::try_from(v)?.into()),
           b"hgetall" => Ok(HGetAll::try_from(v)?.into()),
+          b"echo" => Ok(Echo::try_from(v)?.into()),
+          b"hmget" => Ok(HMGet::try_from(v)?.into()),
+          b"sadd" => Ok(SAdd::try_from(v)?.into()),
+          b"smembers" => Ok(SMembers::try_from(v)?.into()),
+          b"sismember" => Ok(SIsMember::try_from(v)?.into()),
           _ => Ok(Unrecognized.into()),
         },
         _ => Err(CommandError::InvalidCommand("command must be an RespFrame".to_string())),
@@ -81,9 +98,9 @@ fn validate_command(
   n_arg: usize,
 ) -> Result<(), CommandError> {
   let frames = extract_resp_array(value.clone(), "Invalid command.")?;
-  if frames.len() != n_arg + names.len() {
+  if frames.len() < n_arg + names.len() {
     return Err(CommandError::InvalidArgument(format!(
-      "expected {} arguments, got {}",
+      "expected at least {} arguments, got {}",
       n_arg + names.len(),
       frames.len()
     )));
@@ -92,7 +109,7 @@ fn validate_command(
   for (i, name) in names.iter().enumerate() {
     match frames[i] {
       RespFrame::BulkString(ref s) => {
-        let cmd = extract_bulk_string(s.clone(), "Invalid command")?;
+        let cmd: String = s.clone().into();
         if cmd.as_bytes().to_ascii_lowercase() != name.as_bytes() {
           return Err(CommandError::InvalidCommand(format!(
             "expected command {}, got {}",
@@ -107,19 +124,13 @@ fn validate_command(
       }
     }
   }
+
   Ok(())
 }
 
 fn extract_args(value: RespArray, start: usize) -> Result<Vec<RespFrame>, CommandError> {
   let frames = extract_resp_array(value, "Invalid args.")?;
   Ok(frames.into_iter().skip(start).collect::<Vec<RespFrame>>())
-}
-
-fn extract_bulk_string(s: BulkString, err_msg: &str) -> Result<String, CommandError> {
-  match s.0 {
-    Some(key) => Ok(String::from_utf8(key)?),
-    None => Err(CommandError::InvalidArgument(err_msg.to_string())),
-  }
 }
 
 fn extract_resp_array(value: RespArray, err_msg: &str) -> Result<Vec<RespFrame>, CommandError> {
@@ -132,7 +143,7 @@ fn extract_resp_array(value: RespArray, err_msg: &str) -> Result<Vec<RespFrame>,
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{RespDecode, RespNull};
+  use crate::RespDecode;
   use anyhow::Result;
   use bytes::BytesMut;
 
@@ -146,7 +157,7 @@ mod tests {
     let backend = Backend::new();
     let ret = cmd.execute(&backend);
 
-    assert_eq!(ret, RespFrame::Null(RespNull));
+    assert_eq!(ret, RESP_NULL.clone());
     Ok(())
   }
 }

@@ -1,6 +1,4 @@
-use super::{
-  extract_args, extract_bulk_string, validate_command, CommandError, CommandExecutor, RESP_OK,
-};
+use super::{extract_args, validate_command, CommandError, CommandExecutor, RESP_OK};
 use crate::{Backend, RespArray, RespFrame};
 
 #[derive(Debug)]
@@ -23,9 +21,7 @@ impl TryFrom<RespArray> for Set {
 
     let mut args = extract_args(value, 1)?.into_iter();
     match (args.next(), args.next()) {
-      (Some(RespFrame::BulkString(key)), Some(value)) => {
-        Ok(Set { key: extract_bulk_string(key, "Invalid key")?, value })
-      }
+      (Some(RespFrame::BulkString(key)), Some(value)) => Ok(Set { key: key.into(), value }),
       _ => Err(CommandError::InvalidArgument("Invalid key or value".to_string())),
     }
   }

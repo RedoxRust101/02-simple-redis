@@ -1,5 +1,5 @@
-use super::{extract_args, extract_bulk_string, validate_command, CommandError, CommandExecutor};
-use crate::{Backend, RespArray, RespFrame, RespNull};
+use super::{extract_args, validate_command, CommandError, CommandExecutor};
+use crate::{cmd::RESP_NULL, Backend, RespArray, RespFrame};
 
 #[derive(Debug)]
 pub struct HGet {
@@ -11,7 +11,7 @@ impl CommandExecutor for HGet {
   fn execute(self, backend: &Backend) -> RespFrame {
     match backend.hget(&self.key, &self.field) {
       Some(value) => value,
-      None => RespFrame::Null(RespNull),
+      None => RESP_NULL.clone(),
     }
   }
 }
@@ -23,10 +23,9 @@ impl TryFrom<RespArray> for HGet {
 
     let mut args = extract_args(value, 1)?.into_iter();
     match (args.next(), args.next()) {
-      (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field))) => Ok(HGet {
-        key: extract_bulk_string(key, "Invalid key")?,
-        field: extract_bulk_string(field, "Invalid field")?,
-      }),
+      (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field))) => {
+        Ok(HGet { key: key.into(), field: field.into() })
+      }
       _ => Err(CommandError::InvalidArgument("Invalid key or field".to_string())),
     }
   }

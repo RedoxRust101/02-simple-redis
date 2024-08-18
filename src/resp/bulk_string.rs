@@ -90,6 +90,15 @@ impl AsRef<[u8]> for BulkString {
   }
 }
 
+impl From<BulkString> for String {
+  fn from(val: BulkString) -> Self {
+    match val.0 {
+      Some(key) => String::from_utf8(key).unwrap_or_default(),
+      None => String::default(),
+    }
+  }
+}
+
 impl Deref for BulkString {
   type Target = Option<Vec<u8>>;
 

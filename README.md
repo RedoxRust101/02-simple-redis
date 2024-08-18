@@ -6,7 +6,8 @@
 - hmget command:  https://redis.io/commands/hmget/
 - sadd/sismember  https://redis.io/commands/sismember/
 
-### 测试：
+#### 实现echo/hmget/sadd/sismember/smembers
+#### 测试：
 ```shell
 127.0.0.1:6379> echo "hello world"
 "hello world"

@@ -27,6 +27,9 @@ OK
 (integer) 1
 127.0.0.1:6379> sismember mykey "hi"
 (integer) 0
+127.0.0.1:6379> smembers mykey
+1) "world"
+2) "hello"
 ```
 
 ### 重构代码：
